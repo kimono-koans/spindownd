@@ -5,7 +5,7 @@ PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 # Change working directory to / to prevent the daemon from holding a mounted filesystem open.
 cd /
 
-function _spin_down_daemon {
+function _spindownd {
 
 # Set timeout
 local TIMEOUT=1800
@@ -76,4 +76,4 @@ local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 done
 }
 
-_spin_down_daemon  2>&1 | /usr/bin/logger -t spindown &
+_spindownd  2>&1 | /usr/bin/logger -t spindownd &
