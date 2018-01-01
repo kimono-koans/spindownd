@@ -47,11 +47,13 @@ do
   local ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
   local DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
 
-  # Test possible drive states and execute appropriate action: 
-  # 1) Non-idle (clear diskstats and start over):
+  # Test possible drive states and execute appropriate action:
+  
+  # 1) Non-idle (clear diskstats and start over immediately):
   if [[ "$( diff /dev/shm/diskstats_origin_$disk /dev/shm/diskstats_new_$disk )" != "" ]]
   then
    rm "/dev/shm/diskstats_origin_$disk"
+   local ACTUAL_POLLING_INTERVAL=0
 #  echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
   # 2) Standby (increase polling interval) 
   elif [[ $( smartctl -n standby /dev/$disk | grep -c "STANDBY" ) -ne 0 ]]
