@@ -1,0 +1,9 @@
+[Unit]
+Description=Poll '/proc/diskstats' to determine whether HDDs should be spun down
+
+[Service]
+ExecStart=/usr/local/sbin/spindownd
+Type=forking
+
+[Install]
+WantedBy=sysinit.target
