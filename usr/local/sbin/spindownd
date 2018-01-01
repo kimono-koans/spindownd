@@ -16,8 +16,7 @@ local STANDBY_MULTIPLIER=4
 local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
 # Array of disks we want watched
-declare -a watchdisks
-watchdisks=(
+local watchdisks=(
 sda
 sdb
 sdc
@@ -44,9 +43,9 @@ do
   # Always recreate the new stats
   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_new_$disk"
   # Poll for file last modfied time/date
-  NEW_POLL=$( stat -c %Y "/dev/shm/diskstats_new_$disk" )
-  ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
-  DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
+  local NEW_POLL=$( stat -c %Y "/dev/shm/diskstats_new_$disk" )
+  local ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
+  local DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
 
   # Execute Standby
   if [[ "$( diff /dev/shm/diskstats_origin_$disk /dev/shm/diskstats_new_$disk )" != "" ]]
@@ -59,7 +58,7 @@ do
 #  echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
   elif [[ $DIFF_POLL -lt $TIMEOUT ]]
   then
-   SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
+   local SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
 #  echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
   else
    rm "/dev/shm/diskstats_origin_$disk"
