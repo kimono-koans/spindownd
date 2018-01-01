@@ -34,7 +34,7 @@ do
    continue
   fi
 
-  # Create a files on the ramdisk and cycle it to test for disk activity
+  # Create a files on the ramdisk and cycle them to test for disk activity
   # Create the origin stats, if removed b/c non-idle
   if [ ! -f "/dev/shm/diskstats_origin_$disk" ]
   then
@@ -42,7 +42,8 @@ do
   fi
   # Always recreate the new stats
   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_new_$disk"
-  # Poll for file last modfied time/date
+  
+  # Check file last modified time/date
   local NEW_POLL=$( stat -c %Y "/dev/shm/diskstats_new_$disk" )
   local ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
   local DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
