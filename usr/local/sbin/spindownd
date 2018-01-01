@@ -47,19 +47,23 @@ do
   local ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
   local DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
 
-  # Execute Standby
+  # Test possible drive states and execute appropriate action: 
+  # 1) Non-idle (clear diskstats and start over):
   if [[ "$( diff /dev/shm/diskstats_origin_$disk /dev/shm/diskstats_new_$disk )" != "" ]]
   then
    rm "/dev/shm/diskstats_origin_$disk"
 #  echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
+  # 2) Standby (increase polling interval) 
   elif [[ $( smartctl -n standby /dev/$disk | grep -c "STANDBY" ) -ne 0 ]]
   then
    local ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
 #  echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
+  # 3) Idle, but not timed out (do nothing) 
   elif [[ $DIFF_POLL -lt $TIMEOUT ]]
   then
    local SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
 #  echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
+  # 4) Idle and timed out (force standby disk)
   else
    rm "/dev/shm/diskstats_origin_$disk"
    smartctl --set=standby,now /dev/$disk > /dev/null
