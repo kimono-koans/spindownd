@@ -32,6 +32,9 @@ for disk in "${WATCHDISKS[@]}" ; do
 
 done
 
+# Delete unneeded array, WATCHDISKS
+unset WATCHDISKS
+
 # Main daemon loop
 while true ; do
  # Loop through all the array disks and spin down the idle disks. Will find all drives sda -> sdz AND sdaa -> sdaz...
