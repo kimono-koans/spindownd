@@ -5,29 +5,37 @@ PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 # Change working directory to / to prevent the daemon from holding a mounted filesystem open.
 cd /
 
-function _spin_down_daemon {
+function _spindownd {
 
 # Set timeout
 local TIMEOUT=1800
 
 # Set initial polling interval to actual, and add multiplier to use when in standby
-local INITIAL_POLLING_INTERVAL=30
-local STANDBY_MULTIPLIER=4
+local INITIAL_POLLING_INTERVAL=60
+local STANDBY_MULTIPLIER=3
 local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
-# Array of disks we want watched
-declare -a watchdisks
-watchdisks=(
-sda
-sdb
-sdc
+# Array of disks-by-id we want watched
+local WATCHDISKS=(
+/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N5VD5C7Z
+/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N1LH697F
+/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N4HYL8ZD
 )
+
+# Convert to raw disk names
+local RAWDISKS=()
+for disk in "${WATCHDISKS[@]}"
+do
+ local LINKED_DISK=$( readlink -f "$disk" )
+ local BASE_DISK_NAME=$( basename "$LINKED_DISK" )
+ RAWDISKS+=($( echo "$BASE_DISK_NAME" ))
+done
 
 # Main daemon loop
 while true
 do
  # Loop through all the array disks and spin down the idle disks. Will find all drives sda -> sdz AND sdaa -> sdaz...
- for disk in "${watchdisks[@]}"
+ for disk in "${RAWDISKS[@]}"
  do
 
   # Check if drive does not exist, if not, then exit
@@ -36,33 +44,38 @@ do
   fi
 
   # Create a files on the ramdisk and cycle it to test for disk activity
-  # Create the origin stats, if removed b/c non-idle
-  if [ ! -f "/dev/shm/diskstats_origin_$disk" ]
+  # Create the initial stats, if removed b/c non-idle
+  if [ ! -f "/dev/shm/diskstats_initial_$disk" ]
   then
-   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_origin_$disk"
+   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_initial_$disk"
   fi
   # Always recreate the new stats
-  cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_new_$disk"
+  cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_latest_$disk"
   # Poll for file last modfied time/date
-  NEW_POLL=$( stat -c %Y "/dev/shm/diskstats_new_$disk" )
-  ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
-  DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
+  local INITIAL_POLL=$( stat -c %Y "/dev/shm/diskstats_initial_$disk" )
+  local LATEST_POLL=$( stat -c %Y "/dev/shm/diskstats_latest_$disk" )
+  local DIFF_POLL=$(( $LATEST_POLL - $INITIAL_POLL ))
 
-  # Execute Standby
-  if [[ "$( diff /dev/shm/diskstats_origin_$disk /dev/shm/diskstats_new_$disk )" != "" ]]
+  # Test possible drive states and execute appropriate action:
+
+  # 1) Non-idle (clear diskstats and start over immediately):
+  if [[ "$( diff /dev/shm/diskstats_initial_$disk /dev/shm/diskstats_latest_$disk )" != "" ]]
   then
-   rm "/dev/shm/diskstats_origin_$disk"
-#  echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
+   rm "/dev/shm/diskstats_initial_$disk"
+   #echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
+  # 2) Standby (increase polling interval)
   elif [[ $( smartctl -n standby /dev/$disk | grep -c "STANDBY" ) -ne 0 ]]
   then
-   local ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
-#  echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
+   ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
+   #echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
+  # 3) Idle, but not timed out (do nothing)
   elif [[ $DIFF_POLL -lt $TIMEOUT ]]
   then
-   SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
-#  echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
+   local SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
+   #echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
+  # 4) Idle and timed out (force standby disk)
   else
-   rm "/dev/shm/diskstats_origin_$disk"
+   rm "/dev/shm/diskstats_initial_$disk"
    smartctl --set=standby,now /dev/$disk > /dev/null
    echo "Disk has been IDLE for the timeout period.  Spinning down disk: /dev/$disk"
   fi
@@ -71,9 +84,9 @@ do
 # Sleep for polling interval period
 sleep $ACTUAL_POLLING_INTERVAL
 # And then reset to default
-local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
+ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
 done
 }
 
-_spin_down_daemon  2>&1 | /usr/bin/logger -t spindown &
+_spindownd  2>&1 | /usr/bin/logger -t spindownd &
