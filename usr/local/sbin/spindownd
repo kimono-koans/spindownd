@@ -15,11 +15,19 @@ local INITIAL_POLLING_INTERVAL=60
 local STANDBY_MULTIPLIER=3
 local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
+<<<<<<< HEAD
 # Array of disks-by-id we want watched
 local WATCHDISKS=(
 /dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N5VD5C7Z
 /dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N1LH697F
 /dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N4HYL8ZD
+=======
+# Array of disks we want watched
+local watchdisks=(
+sda
+sdb
+sdc
+>>>>>>> 8dbfcaa1a800978ca69266e34d528015c222d7ef
 )
 
 # Convert to raw disk names
@@ -43,13 +51,20 @@ do
    continue
   fi
 
+<<<<<<< HEAD
   # Create a files on the ramdisk and cycle it to test for disk activity
   # Create the initial stats, if removed b/c non-idle
   if [ ! -f "/dev/shm/diskstats_initial_$disk" ]
+=======
+  # Create a files on the ramdisk and cycle them to test for disk activity
+  # Create the origin stats, if removed b/c non-idle
+  if [ ! -f "/dev/shm/diskstats_origin_$disk" ]
+>>>>>>> 8dbfcaa1a800978ca69266e34d528015c222d7ef
   then
    cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_initial_$disk"
   fi
   # Always recreate the new stats
+<<<<<<< HEAD
   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_latest_$disk"
   # Poll for file last modfied time/date
   local INITIAL_POLL=$( stat -c %Y "/dev/shm/diskstats_initial_$disk" )
@@ -69,6 +84,28 @@ do
    ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
    #echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
   # 3) Idle, but not timed out (do nothing)
+=======
+  cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_new_$disk"
+  
+  # Check file last modified time/date
+  local NEW_POLL=$( stat -c %Y "/dev/shm/diskstats_new_$disk" )
+  local ORIGIN_POLL=$( stat -c %Y "/dev/shm/diskstats_origin_$disk" )
+  local DIFF_POLL=$(( $NEW_POLL - $ORIGIN_POLL ))
+
+  # Test possible drive states and execute appropriate action:
+  
+  # 1) Non-idle (clear diskstats and start over)
+  if [[ "$( diff /dev/shm/diskstats_origin_$disk /dev/shm/diskstats_new_$disk )" != "" ]]
+  then
+   rm "/dev/shm/diskstats_origin_$disk"
+   #echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
+  # 2) Standby (increase polling interval) 
+  elif [[ $( smartctl -n standby /dev/$disk | grep -c "STANDBY" ) -ne 0 ]]
+  then
+   local ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
+   #echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
+  # 3) Idle, but not timed out (do nothing) 
+>>>>>>> 8dbfcaa1a800978ca69266e34d528015c222d7ef
   elif [[ $DIFF_POLL -lt $TIMEOUT ]]
   then
    local SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
@@ -89,4 +126,8 @@ ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 done
 }
 
+<<<<<<< HEAD
 _spindownd  2>&1 | /usr/bin/logger -t spindownd &
+=======
+_spindownd  2>&1 | /usr/bin/logger -t spindownd &
+>>>>>>> 8dbfcaa1a800978ca69266e34d528015c222d7ef
