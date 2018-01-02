@@ -70,7 +70,6 @@ while true ; do
   	#echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
   # 4) Idle and timed out (force standby disk)
   else
-  	rm "/dev/shm/diskstats_initial_$disk"
   	smartctl --set=standby,now /dev/$disk > /dev/null
   	echo "Disk has been IDLE for the timeout period.  Spinning down disk: /dev/$disk"
   fi
