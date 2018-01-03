@@ -28,7 +28,11 @@ for disk in "${WATCHDISKS[@]}" ; do
 	RAWDISKS+=($( echo "$BASE_DISK_NAME" ))
 done
 
+<<<<<<< HEAD
 # Then delete unneeded array, WATCHDISKS
+=======
+# Delete unneeded array, WATCHDISKS
+>>>>>>> 538e6db9f71b127e58f7905b55aab50384f3a8c4
 unset WATCHDISKS
 
 # Main daemon loop
