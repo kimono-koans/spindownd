@@ -14,23 +14,22 @@ local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
 # Array of disks-by-id we want watched
 local WATCHDISKS=(
-
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N5VD5C7Z
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N1LH697F
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N4HYL8ZD
-
 )
 
 # Convert disks-by-id to raw disk names
 local RAWDISKS=()
 
 for disk in "${WATCHDISKS[@]}" ; do
-
 	local LINKED_DISK=$( readlink -f "$disk" )
 	local BASE_DISK_NAME=$( basename "$LINKED_DISK" )
 	RAWDISKS+=($( echo "$BASE_DISK_NAME" ))
-
 done
+
+# Then delete unneeded array, WATCHDISKS
+unset WATCHDISKS
 
 # Main daemon loop
 while true ; do
@@ -40,6 +39,13 @@ while true ; do
   # Check if drive does not exist, if not, then exit
   if [ ! -e /dev/$disk ]; then
   	continue
+  fi
+
+  # Check if drive already in standby, if so, then increase polling interval and exit
+  if [[ $( hdparm -C /dev/$disk | grep -c "standby" ) -ne 0 ]]; then
+  	ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
+  	#echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
+	continue
   fi
 
   # Create a files on the ramdisk and cycle it to test for disk activity
@@ -60,17 +66,13 @@ while true ; do
   if [[ "$( diff /dev/shm/diskstats_initial_$disk /dev/shm/diskstats_latest_$disk )" != "" ]]; then
   	rm "/dev/shm/diskstats_initial_$disk"
   	#echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
-  # 2) Standby (increase polling interval)
-  elif [[ $( smartctl -n standby /dev/$disk | grep -c "STANDBY" ) -ne 0 ]]; then
-  	ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
-  	#echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
-  # 3) Idle, but not timed out (do nothing)
+  # 2) Idle but not timed out (do nothing)
   elif [[ $DIFF_POLL -lt $TIMEOUT ]]; then
-  	local SECONDS_TO_TIMEOUT=$(($TIMEOUT - $DIFF_POLL))
+  	local SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
   	#echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
-  # 4) Idle and timed out (force standby disk)
+  # 3) Idle and timed out (force standby disk)
   else
-  	smartctl --set=standby,now /dev/$disk > /dev/null
+  	hdparm -y /dev/$disk > /dev/null
   	echo "Disk has been IDLE for the timeout period.  Spinning down disk: /dev/$disk"
   fi
  done
