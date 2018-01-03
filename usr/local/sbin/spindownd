@@ -28,11 +28,7 @@ for disk in "${WATCHDISKS[@]}" ; do
 	RAWDISKS+=($( echo "$BASE_DISK_NAME" ))
 done
 
-<<<<<<< HEAD
 # Then delete unneeded array, WATCHDISKS
-=======
-# Delete unneeded array, WATCHDISKS
->>>>>>> 538e6db9f71b127e58f7905b55aab50384f3a8c4
 unset WATCHDISKS
 
 # Main daemon loop
@@ -46,7 +42,7 @@ while true ; do
   fi
 
   # Check if drive already in standby, if so, then increase polling interval and exit
-  if [[ $( hdparm -C /dev/$disk | grep -c "standby" ) -ne 0 ]]; then
+  if [ $( hdparm -C /dev/$disk | grep -c "standby" ) -ne 0 ]; then
   	ACTUAL_POLLING_INTERVAL=$(( $STANDBY_MULTIPLIER * $INITIAL_POLLING_INTERVAL ))
   	#echo "/dev/$disk is already sleeping. New polling interval is $ACTUAL_POLLING_INTERVAL seconds."
 	continue
@@ -54,7 +50,7 @@ while true ; do
 
   # Create a files on the ramdisk and cycle it to test for disk activity
   # Create the initial stats, if removed b/c non-idle
-  if [ ! -f "/dev/shm/diskstats_initial_$disk" ]; then
+  if [ ! -e "/dev/shm/diskstats_initial_$disk" ]; then
   	cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_initial_$disk"
   fi
   # Always recreate the new stats
@@ -67,11 +63,11 @@ while true ; do
   # Test possible drive states and execute appropriate action:
 
   # 1) Non-idle (clear diskstats and start over immediately):
-  if [[ "$( diff /dev/shm/diskstats_initial_$disk /dev/shm/diskstats_latest_$disk )" != "" ]]; then
+  if [ "$( diff /dev/shm/diskstats_initial_$disk /dev/shm/diskstats_latest_$disk )" != "" ]; then
   	rm "/dev/shm/diskstats_initial_$disk"
   	#echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
   # 2) Idle but not timed out (do nothing)
-  elif [[ $DIFF_POLL -lt $TIMEOUT ]]; then
+  elif [ $DIFF_POLL -lt $TIMEOUT ]; then
   	local SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
   	#echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
   # 3) Idle and timed out (force standby disk)
