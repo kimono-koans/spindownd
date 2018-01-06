@@ -5,22 +5,22 @@ PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 function _spindownd {
 
 # Set timeout
-local TIMEOUT=1800
+local -i TIMEOUT=1800
 
 # Set initial polling interval to actual, and add multiplier to use when in standby
-local INITIAL_POLLING_INTERVAL=60
-local STANDBY_MULTIPLIER=3
-local ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
+local -i INITIAL_POLLING_INTERVAL=30
+local -i STANDBY_MULTIPLIER=6
+local -i ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
 # Array of disks-by-id we want watched
-local WATCHDISKS=(
+local -a WATCHDISKS=(
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N5VD5C7Z
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N1LH697F
 	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N4HYL8ZD
 )
 
 # Convert disks-by-id to raw disk names
-local RAWDISKS=()
+local -a RAWDISKS=()
 
 for disk in "${WATCHDISKS[@]}" ; do
 	local LINKED_DISK=$( readlink -f "$disk" )
@@ -56,9 +56,9 @@ while true ; do
   # Always recreate the new stats
   cat /proc/diskstats | grep "$disk" > "/dev/shm/diskstats_latest_$disk"
   # Poll for file last modfied time/date
-  local INITIAL_POLL=$( stat -c %Y "/dev/shm/diskstats_initial_$disk" )
-  local LATEST_POLL=$( stat -c %Y "/dev/shm/diskstats_latest_$disk" )
-  local DIFF_POLL=$(( $LATEST_POLL - $INITIAL_POLL ))
+  local -i INITIAL_POLL=$( stat -c %Y "/dev/shm/diskstats_initial_$disk" )
+  local -i LATEST_POLL=$( stat -c %Y "/dev/shm/diskstats_latest_$disk" )
+  local -i DIFF_POLL=$(( $LATEST_POLL - $INITIAL_POLL ))
 
   # Test possible drive states and execute appropriate action:
 
@@ -68,10 +68,11 @@ while true ; do
   	#echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
   # 2) Idle but not timed out (do nothing)
   elif [ $DIFF_POLL -lt $TIMEOUT ]; then
-  	local SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
+  	local -i SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
   	#echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
   # 3) Idle and timed out (force standby disk)
   else
+  	rm "/dev/shm/diskstats_initial_$disk"
   	hdparm -y /dev/$disk > /dev/null
   	echo "Disk has been IDLE for the timeout period.  Spinning down disk: /dev/$disk"
   fi
@@ -86,4 +87,4 @@ done
 
 }
 
-_spindownd  2>&1 | /usr/bin/logger -t spindownd &
+_spindownd 2>&1 | /usr/bin/logger -t spindownd &
