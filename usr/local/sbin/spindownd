@@ -68,7 +68,9 @@ while true ; do
   	#echo "Disk has NOT been IDLE during the polling period.  Resetting polling for disk: /dev/$disk"
   # 2) Idle but not timed out (do nothing)
   elif [ $DIFF_POLL -lt $TIMEOUT ]; then
-  	local -i SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
+  	#Noop Operator, because we are not doing anything here
+        :
+  	#local -i SECONDS_TO_TIMEOUT=$(( $TIMEOUT - $DIFF_POLL ))
   	#echo "Disk is IDLE but has not reached its TIMEOUT yet.  Continuing to poll disk: /dev/$disk.  Timeout in $SECONDS_TO_TIMEOUT seconds"
   # 3) Idle and timed out (force standby disk)
   else
