@@ -14,9 +14,9 @@ local -i ACTUAL_POLLING_INTERVAL=$INITIAL_POLLING_INTERVAL
 
 # Array of disks-by-id we want watched
 local -a WATCHDISKS=(
-	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N5VD5C7Z
-	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N1LH697F
-	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-WCC4N4HYL8ZD
+	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-XXXXXXXXXXXX
+	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-XXXXXXXXXXXX
+	/dev/disk/by-id/ata-WDC_WD30EFRX-68EUZN0_WD-XXXXXXXXXXXX
 )
 
 # Convert disks-by-id to raw disk names
@@ -33,7 +33,7 @@ unset WATCHDISKS
 
 # Main daemon loop
 while true ; do
- # Loop through all the array disks and spin down the idle disks. Will find all drives sda -> sdz AND sdaa -> sdaz...
+ # Loop through all the array disks and spin down the idle disks.
  for disk in "${RAWDISKS[@]}"; do
 
   # Check if drive does not exist, if not, then exit
